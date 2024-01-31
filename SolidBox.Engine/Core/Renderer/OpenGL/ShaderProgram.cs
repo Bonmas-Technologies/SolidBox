@@ -3,9 +3,9 @@ using Silk.NET.OpenGL;
 using System.Runtime.Serialization;
 using Silk.NET.Maths;
 
-namespace SolidBox.Engine.Core
+namespace SolidBox.Engine.Core.Renderer.OpenGL
 {
-    public class ShaderProgram : IDisposable
+    internal class ShaderProgram : IDisposable
     {
         private readonly GL _context;
         private readonly uint _program;
@@ -33,7 +33,7 @@ namespace SolidBox.Engine.Core
 
 
         public void UseProgram()
-        { 
+        {
             _context.UseProgram(_program);
         }
 

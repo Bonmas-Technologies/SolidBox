@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SolidBox.Engine.Core
+namespace SolidBox.Engine.Core.Logic
 {
     internal class MathHelper
     {

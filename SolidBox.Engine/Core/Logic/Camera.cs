@@ -3,7 +3,7 @@ using Silk.NET.Maths;
 
 namespace SolidBox.Engine.Core.Logic
 {
-    public class Camera
+    internal class Camera
     {
         private Vector3D<float> _front = -Vector3D<float>.UnitZ;
 

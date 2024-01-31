@@ -1,22 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Silk.NET.Core" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.Input" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.Maths" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.20.0" />
-    <PackageReference Include="Silk.NET.Windowing" Version="2.20.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.2" />
-  </ItemGroup>
     
   <ItemGroup>
     <None Include="Resources\**">

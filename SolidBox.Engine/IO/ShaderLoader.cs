@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SolidBox.Engine.IO
 {
-    public static class ShaderLoader
+    internal static class ShaderLoader
     {
         public static string LoadShader(string path)
         {
