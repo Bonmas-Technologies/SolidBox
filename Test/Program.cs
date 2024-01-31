@@ -1,10 +1,11 @@
-﻿using Silk.NET.GLFW;
-using Silk.NET.Input;
+﻿using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using SolidBox.Engine.Core;
+using SolidBox.Engine.Core.Logic;
+using SolidBox.Engine.IO;
 using System.Numerics;
 using System.Text;
 
@@ -14,9 +15,11 @@ namespace Test
     {
         private static GL _gl;
 
+        private static Camera _cam;
+
         private static IWindow _main;
         private static IInputContext _inputContext;
-        private static ImGuiController _controller;
+        private static ImGuiController _imGuiController;
 
         private static TextWriter _output;
         private static StringBuilder _counter;
@@ -49,73 +52,27 @@ namespace Test
         private static uint[] elements =
         {
             1, 0, 2,
-            2, 3, 1
+            2, 3, 1,
+            1, 2, 0,
+            2, 1, 3,
         };
         private static uint _screenBuffer;
-        private static uint _texture;
+        private static uint _screenTexture;
         private static double _timer;
-        private const string framebufferVertex =
-@"
-#version 330 core
+        private static Vector2 prevMousePosition;
 
-layout (location = 0) in vec3 aPosition;
-layout (location = 1) in vec2 aUV;
+        private static float _speed = 10;
 
-out vec2 UV;
 
-void main()
-{
-    gl_Position = vec4(aPosition, 1.0);
-    UV = aUV;
-}
-";
-
-        private const string frameBufferFragment =
-@"
-#version 330 core
-
-uniform sampler2D buffer;
-
-in vec2 UV;
-out vec4 out_color;
-
-void main()
-{
-    out_color = texture(buffer, UV);
-}
-";
-
-        private const string screenVertex =
-@"
-#version 330 core
-
-layout (location = 0) in vec3 aPosition;
-
-uniform mat4 local;
-
-void main()
-{
-    gl_Position = local * vec4(aPosition, 1.0);
-}
-";
-        private const string screenFragment =
-@"
-#version 330 core
-
-uniform vec3 color;
-
-out vec4 out_color;
-
-void main()
-{
-    out_color = vec4(color, 1.);
-}
-";
-
+        private const int Width = 100;
+        private const int Height = 75;
         private static float[] samples = new float[60];
+        private static float _sens = 0.1f;
+        private static bool _cursorFixed = false;
 
         static void Main(string[] args)
         {
+            _cam = new Camera(new Vector3D<float>(0, 0, 3), Width / Height);
             _output = Console.Out;
             _counter = new StringBuilder();
 
@@ -124,8 +81,9 @@ void main()
             _main = Window.Create(WindowOptions.Default with
             {
                 Size = _size,
-                Title = "Hello world!",
-                VSync = false,
+                Title = "SolidBox GE [Early]",
+                VSync = true,
+                Position = new Vector2D<int>(100,100)
             });
 
             _main.Load += OnLoad;
@@ -139,14 +97,20 @@ void main()
 
         static unsafe void OnLoad()
         {
+            _main.Center();
             _gl = _main.CreateOpenGL();
 
             _inputContext = _main.CreateInput();
 
-            _controller = new ImGuiController(_gl, _main, _inputContext);
+            _imGuiController = new ImGuiController(_gl, _main, _inputContext);
 
             for (int i = 0; i < _inputContext.Keyboards.Count; i++)
+            {
                 _inputContext.Keyboards[i].KeyDown += KeyDown;
+            }
+
+            for (int i = 0; i < _inputContext.Mice.Count; i++)
+                _inputContext.Mice[i].MouseMove += MouseMove;
 
             _gl.ClearColor(0.3906f, 0.5802f, 0.9257f, 1);
 
@@ -158,7 +122,7 @@ void main()
                 _gl.GetInteger(GetPName.MajorVersion, &major);
                 _gl.GetInteger(GetPName.MajorVersion, &minor);
 
-                _main.Title = string.Format("{0}: {1}.{2}", _main.Title, major, minor);
+                _main.Title = string.Format("{0} | OpenGL: {1}.{2}", _main.Title, major, minor);
 
                 _scene = _gl.GenVertexArray();
 
@@ -207,81 +171,127 @@ void main()
 
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _screenBuffer);
             {
-                _texture = _gl.GenTexture();
+                _screenTexture = _gl.GenTexture();
 
-                _gl.BindTexture(TextureTarget.Texture2D, _texture);
-                _gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb, 40, 30, 0, PixelFormat.Rgb, PixelType.UnsignedByte, (void*)0);
+                _gl.BindTexture(TextureTarget.Texture2D, _screenTexture);
+                _gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb, Width, Height, 0, PixelFormat.Rgb, PixelType.UnsignedByte, (void*)0);
                 _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (uint)GLEnum.Linear);
                 _gl.TexParameterI(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (uint)GLEnum.Nearest);
                 _gl.BindTexture(TextureTarget.Texture2D, 0);
 
-                _gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, _texture, 0);
+                _gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, _screenTexture, 0);
 
                 if (_gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != GLEnum.FramebufferComplete)
                     Console.WriteLine("FB IS NO READY");
             }
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
-            _program = new ShaderProgram(_gl, screenVertex, screenFragment);
-            _buffer = new ShaderProgram(_gl, framebufferVertex, frameBufferFragment);
+            _program = new ShaderProgram(_gl, ShaderLoader.LoadShader(@"Resources\Shaders\screen.vert"), ShaderLoader.LoadShader(@"Resources\Shaders\screen.frag"));
+            _buffer = new ShaderProgram(_gl, ShaderLoader.LoadShader(@"Resources\Shaders\output.vert"), ShaderLoader.LoadShader(@"Resources\Shaders\output.frag"));
 
             _gl.Enable(EnableCap.CullFace);
             _gl.CullFace(TriangleFace.Back);
             _gl.FrontFace(FrontFaceDirection.Ccw);
         }
 
+        private static void MouseMove(IMouse mouse, Vector2 vector)
+        {
+            if (_cursorFixed)
+                mouse.Cursor.CursorMode = CursorMode.Disabled;
+            else
+                mouse.Cursor.CursorMode = CursorMode.Normal;
+
+            if (prevMousePosition == Vector2.Zero)
+                prevMousePosition = vector;
+
+            Vector2 offset = vector - prevMousePosition;
+
+            offset *= _sens;
+
+            if (_cursorFixed)
+            {
+                _cam.Pitch -= offset.Y;
+                _cam.Yaw += offset.X;
+            }
+
+            prevMousePosition = vector;
+        }
 
         static void Update(double time)
         {
             _frameCounter++;
 
-            _controller.Update((float)time);
+            var keyboard = _inputContext.Keyboards[0];
+
+            if (keyboard.IsKeyPressed(Key.E))
+                _cam.Position += Vector3D<float>.UnitY * (float)time * _speed;
+
+            if (keyboard.IsKeyPressed(Key.Q))
+                _cam.Position -= Vector3D<float>.UnitY * (float)time * _speed;
+
+            if (keyboard.IsKeyPressed(Key.W))
+                _cam.Position += _cam.Front * (float)time * _speed;
+
+            if (keyboard.IsKeyPressed(Key.S))
+                _cam.Position -= _cam.Front * (float)time * _speed;
+
+            if (keyboard.IsKeyPressed(Key.D))
+                _cam.Position += _cam.Right * (float)time * _speed;
+
+            if (keyboard.IsKeyPressed(Key.A))
+                _cam.Position -= _cam.Right * (float)time * _speed;
+
+
+            _imGuiController.Update((float)time);
         }
 
         static unsafe void Render(double time)
         {
-            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _screenBuffer);
-            _gl.Viewport(0, 0, 40, 30);
+            _timer += time * 10;
+            samples[_frameCounter % (ulong)samples.Length] = (float)time;
 
+            // pass 1
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _screenBuffer);
+            _gl.Viewport(0, 0, Width, Height);
             _gl.Clear(ClearBufferMask.ColorBufferBit);
+            _gl.Enable(EnableCap.DepthTest);
+            _gl.BindVertexArray(_scene);
 
             _program.UseProgram();
             _program.SetFloat3(_program.GetLocation("color"), new Vector3D<float>(1, 1, 1));
-
-            _timer += time * 10;
-
-            samples[_frameCounter % (ulong)samples.Length] = (float)time;
-
-
-            _program.SetMatrix4(_program.GetLocation("local"), Matrix4x4.CreateRotationZ((float)_timer * MathF.PI / 180));
-
-            _gl.BindVertexArray(_scene);
+            _program.SetMatrix4(_program.GetLocation("local"),  Matrix4X4.CreateRotationZ<float>((float)_timer * MathF.PI / 180f) * Matrix4X4.CreateRotationY<float>((float)_timer * 20f * MathF.PI / 180f));
+            _program.SetMatrix4(_program.GetLocation("world"), _cam.GetViewMatrix());
+            _program.SetMatrix4(_program.GetLocation("view"), _cam.GetProjectionMatrix());
 
             _gl.DrawElements(PrimitiveType.Triangles, (uint)elements.Length, DrawElementsType.UnsignedInt, (void*)0);
 
+            // pass 2
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             _gl.Viewport(0, 0, (uint)_size.X, (uint)_size.Y);
             _gl.Clear(ClearBufferMask.ColorBufferBit);
-            _buffer.UseProgram();
+            _gl.Disable(EnableCap.DepthTest);
             _gl.BindVertexArray(_screenVao);
 
-            _gl.BindTexture(TextureTarget.Texture2D, _texture);
+            _buffer.UseProgram();
+            _gl.BindTexture(TextureTarget.Texture2D, _screenTexture);
 
             _gl.DrawElements(PrimitiveType.Triangles, (uint)elements.Length, DrawElementsType.UnsignedInt, (void*)0);
 
+            ImGuiSetup();
 
-            ImGui();
-
-            _controller.Render();
+            _imGuiController.Render();
         }
 
-        private static unsafe void ImGui()
+        private static unsafe void ImGuiSetup()
         {
             //ImGuiNET.ImGui.ShowDemoWindow();
 
+            if (ImGuiNET.ImGui.Begin("Help"))
+                ImGuiNET.ImGui.Text(string.Format("WASD - move{0}EQ - up/down{0}F1 - switch cursor", Environment.NewLine));
+
             if (ImGuiNET.ImGui.Begin("Perfomance"))
             {
-                ImGuiNET.ImGui.PlotLines("Samples", ref samples[0], samples.Length);
+                ImGuiNET.ImGui.PlotLines("Frametime", ref samples[0], samples.Length);
 
                 float ms = MathF.Round(1000f * samples[_frameCounter % (ulong)samples.Length], 2);
                 float fps = MathF.Round(1f / samples[_frameCounter % (ulong)samples.Length], 2);
@@ -306,15 +316,12 @@ void main()
                 ImGuiNET.ImGui.Checkbox("V sync", ref vsync);
 
                 if (vsync != _main.VSync)
-                {
                     if (vsync)
                         samples = new float[30];
                     else
                         samples = new float[300];
-                }
 
                 _main.VSync = vsync;
-
             }
         }
 
@@ -322,6 +329,9 @@ void main()
         {
             if (key == Key.Escape)
                 _main.Close();
+
+            if (key == Key.F1)
+                _cursorFixed = !_cursorFixed;
         }
 
         private static void Resize(Vector2D<int> size)

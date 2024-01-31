@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Numerics;
 using Silk.NET.OpenGL;
 using System.Runtime.Serialization;
 using Silk.NET.Maths;
@@ -52,7 +51,7 @@ namespace SolidBox.Engine.Core
 
         public void SetFloat4(int index, Vector4D<float> value) => _context.Uniform4(index, value.X, value.Y, value.Z, value.W);
 
-        public unsafe void SetMatrix4(int index, Matrix4x4 value) => _context.UniformMatrix4(index, 1, false, (float*)&value);
+        public unsafe void SetMatrix4(int index, Matrix4X4<float> value) => _context.UniformMatrix4(index, 1, false, (float*)&value);
 
         #endregion
 
