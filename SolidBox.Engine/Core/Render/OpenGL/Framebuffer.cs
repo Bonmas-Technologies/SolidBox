@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SolidBox.Engine.Core.Renderer.OpenGL
+namespace SolidBoxGE.Core.Render.OpenGL
 {
     internal class Framebuffer : IDisposable
     {

@@ -3,7 +3,7 @@ using Silk.NET.OpenGL;
 using System.Runtime.Serialization;
 using Silk.NET.Maths;
 
-namespace SolidBox.Engine.Core.Renderer.OpenGL
+namespace SolidBoxGE.Core.Render.OpenGL
 {
     internal class ShaderProgram : IDisposable
     {

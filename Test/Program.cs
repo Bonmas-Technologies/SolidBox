@@ -1,4 +1,4 @@
-﻿using SolidBox.Engine.Core;
+﻿using SolidBoxGE.Core;
 
 namespace Test
 {
@@ -7,6 +7,10 @@ namespace Test
         static void Main(string[] args)
         {
             Application app = new Sandbox();
+
+            NLua.Lua lua= new();
+
+            lua.DoFile("./Data/Scripts/init.lua");
 
             app.Run();
         }

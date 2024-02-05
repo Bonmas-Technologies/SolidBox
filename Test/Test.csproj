@@ -9,13 +9,13 @@
   </PropertyGroup>
     
   <ItemGroup>
-    <None Include="Resources\**">
+    <ProjectReference Include="..\SolidBox.Engine\SolidBoxGE.csproj" />
+  </ItemGroup>
+ 
+  <ItemGroup>
+    <None Include="..\SolidBox.Engine\Resources\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-    
-  <ItemGroup>
-    <ProjectReference Include="..\SolidBox.Engine\SolidBox.Engine.csproj" />
   </ItemGroup>
 
 </Project>

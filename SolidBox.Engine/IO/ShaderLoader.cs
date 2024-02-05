@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text;
 
-namespace SolidBox.Engine.IO
+namespace SolidBoxGE.IO
 {
     internal static class ShaderLoader
     {
@@ -16,7 +16,7 @@ namespace SolidBox.Engine.IO
             StringBuilder shaderBuilder = new StringBuilder();
 
             shaderBuilder.AppendLine("#vert-shader");
-            shaderBuilder.AppendFormat(@"{1}{0}{1}", File.ReadAllText(vertPath), Environment.NewLine); 
+            shaderBuilder.AppendFormat(@"{1}{0}{1}", File.ReadAllText(vertPath), Environment.NewLine);
 
             shaderBuilder.AppendLine("#frag-shader");
             shaderBuilder.AppendFormat(@"{1}{0}{1}", File.ReadAllText(fragPath), Environment.NewLine);
